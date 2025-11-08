@@ -113,9 +113,29 @@ blip2本质也是个adapter，来对齐视觉backbone和llm decoder。它是个e
 - 序列长度：前两阶段 8192，长上下文阶段 32768。  
 - 继续联合训练，但把序列长度扩到 32,768。
 
+## clip
+两个输入头，这点和blip2不一样（ert初始化直接能得到语义向量），有钱有数据集，超大batch（提升对比度）喂给infonce直接训练就行了。
+注意它的结构：它有一个初始token[cls],代表全局图像/语义，而不是单纯的patch embedding做自注意力。这是2020vit论文就提出的。
 
+## controlnet
+对unet每个block在旁边复制一个control branch,branch最后接一个初始为0的1×1conv来保证训练开始时输出一致，每个block的输出是unet输出加上branch的输出，
+注意这里复制的branch权重初始和unet一样非零，保证了初始梯度不为0，类似lora的初始化。
 
+## ip-adapter
+Tencent ARC Lab（吕昊翔团队）在 2023 年提出。
+就是找个vit，比较细致的方案会用patch向量，加一些投影层和resampler(可学习的q,多层注意力来固定个数和维度)接在文本kv的后面。
 
+## dinov2-large
+[gpt聊天](https://chatgpt.com/share/690f28a6-5fa0-8010-90e4-9b7c06a27cb2)
+### prtotype自蒸馏
+
+### Sinkhorn–Knopp算法
+
+### iBOT
+
+## deepface
+
+## LongCat-Video
 
 
 
