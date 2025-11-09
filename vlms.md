@@ -127,11 +127,138 @@ Tencent ARC Lab（吕昊翔团队）在 2023 年提出。
 
 ## dinov2-large
 [gpt聊天](https://chatgpt.com/share/690f28a6-5fa0-8010-90e4-9b7c06a27cb2)
-### prtotype自蒸馏
+先按照时间顺序讲dino,ibot,sk算法
+### prototype自蒸馏
+DINO（2021）提出无标签自蒸馏：student 去拟合由 EMA teacher 的[cls]给出的softmax 分布（prototype），并用 centering + sharpening 防塌缩，但并未采用原型均衡（SK）。
 
 ### Sinkhorn–Knopp算法
+# Sinkhorn–Knopp（1967–1969，Richard Sinkhorn & Paul Knopp）
+
+**核心问题：矩阵平衡（matrix scaling）**
+
+给定一个非负矩阵 $A$，是否存在两个对角缩放矩阵
+
+- $D_r = \mathrm{diag}(u)$  
+- $D_c = \mathrm{diag}(v)$
+
+使得
+
+$$
+B \;=\; D_r\,A\,D_c
+$$
+
+的**每一行**与**每一列**都满足指定的边缘分布（row-sums / column-sums）？
+
+> 典型应用：构造双随机矩阵（doubly-stochastic matrix）、OT / Sinkhorn divergence 等等。
+
+---
+
+## 迭代更新（最核心的两行）
+
+给定当前 $v$，更新 $u$：
+
+$$
+u_k
+=
+\frac{B/K}{\displaystyle \sum_{b} P_{kb}\,v_b}
+$$
+
+给定当前 $u$，更新 $v$：
+
+$$
+v_b
+=
+\frac{1}{\displaystyle \sum_{k} u_k\,P_{kb}}
+$$
+
+---
+
+一句话总结：
+
+> **反复归一化行、列 → 逼近满足指定边缘分布的缩放矩阵。**
+
 
 ### iBOT
+iBOT（Image BERT Pre-Training with Online Tokenizer）
+——是 2021 年由百度视觉团队提出的自监督视觉预训练框架（论文发表于 CVPR 2022）。它直接承接了 DINO 的 “teacher–student 自蒸馏” 思路，同时引入了 BERT-式 mask-预测机制。
+# iBOT 概要笔记
+
+## 一、总体思路
+
+**iBOT 的核心目标：**
+
+> **让 student 网络在部分 patch 被 mask 的情况下，仍能预测出这些 patch 在 teacher 特征空间中的语义表示。**
+
+- **teacher**：结构与 student 相同，用 **EMA** （exponential moving average）更新参数，**看到完整图像**
+- **student**：输入图像随机 mask 掉部分 patch，仅凭剩余上下文**预测被 mask patch 的语义**
+- **tokenizer**：teacher 输出的 patch feature → projection → softmax → 与有限个 **“prototype” codebook** 对应  
+  → 类似 BERT 的 masked token prediction  
+  但预测空间不是词表 ID，而是 **teacher 的 prototype 语义编码**
+
+## 二、网络结构与目标
+
+- 骨干：**ViT**（Vision Transformer），输入为固定 patch
+- 两个 branch：
+
+| branch | 目标 |
+|--------|------|
+| Global（全局视角） | 沿袭 DINO，对 `[CLS]` token 做整体语义蒸馏 |
+| Local（局部视角）  | 新增 patch-level 蒸馏，对每个 patch token 做预测 |
+
+- mask 策略：**随机屏蔽 40%–75%** patch，仅给 student 剩余 patch
+
+---
+
+### teacher 输出
+
+$$
+z_t = \text{softmax}\left(\frac{f_t(x)}{\tau_t}\right)
+$$
+
+> $\tau_t$ = teacher 温度
+
+### student 输出
+
+$$
+z_s = \text{softmax}\left(\frac{f_s(\mathrm{Mask}(x))}{\tau_s}\right)
+$$
+
+### patch-level loss
+
+$$
+\mathcal{L}_{\text{iBOT}}
+= - \sum_{i \in \text{masked}} 
+\, z_{t,i} \cdot \log z_{s,i}
+$$
+
+> 在 mask 位置对齐 teacher 与 student 的分布
+
+### teacher 参数更新（EMA）
+
+$$
+\theta_t \leftarrow m\,\theta_t + (1-m)\,\theta_s
+$$
+
+典型动量：  
+$$
+m \approx 0.996
+$$
+
+---
+
+## 三、训练细节
+
+- **数据增强**：multi-crop + 颜色扰动 + 高概率 mask
+- **温度**：teacher $\tau = 0.04$，student $\tau = 0.1$
+- **prototype 数**：**8192**
+- **优化器**：AdamW；weight decay **0.04 → 0.4**（cosine schedule）
+- **teacher 动量**：**0.996 → 1.0**（cosine schedule）
+- **loss**：global+local两部分（cosine schedule）
+
+最后回到dinov2，有以下几个改进
+1.dino loss计算：teacher 端：softmax 后再做 居中（centering），推荐用 Sinkhorn–Knopp（SK）3 次迭代
+2.iBOT 共享投影头、DINOv2 取消共享
+
 
 ## deepface
 
