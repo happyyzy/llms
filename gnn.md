@@ -1,4 +1,15 @@
 # 推荐算法相关的gnn
+首先大部分图模型都可归类为协同过滤，即只需交互信息。一般用来得到embedding加入多塔用于后续排序。
+虽然很多训练loss也算是list排序，比如lightgcn算pairwise，pinsage的margin相似度loss,但是因为缺乏其他特征不能用来直接排序。
+特征初始化有说法，随机初始化当然可以，也可以 用其他塔的特征初始化然后多层传播
+主要讲这几个：
+node embedding的矩阵分解方案和随机游走方案的统一性
+item2vec(从node2vec来)
+pinsage(从grapg sage来，训练的课程学习阶段反复使用随机游走构造多跳邻居，还保存用于推理阶段，冷启动，pin-board图)
+NGCF(图协同过滤，引入交叉特征和嵌入合并)
+LightGCN(图协同过滤，NGCF的简化版效果还好，但是只有embeeding可学习，推理逻辑非常不同)
+MacGNN(节点规模和pinsage差不多，但是边数从百亿提升到万亿，非采样聚合避免大图失衡，可以视为lightgcn的落地补充实现，解决了多跳边数太多问题，冷启动很好)
+
 arXiv:1403.6652是随机游走embedding的开山之作，目前引用量已经过万，解释了deepwalk，node2vec本质上是做矩阵分解，和nlp早期的embeeding方案/推荐的协同过滤跟出同源。
 # deepwalk
 ## 定理 1（随机游走出现频率极限）
