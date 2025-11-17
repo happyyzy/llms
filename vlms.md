@@ -260,7 +260,7 @@ $$
 2.iBOT 共享投影头、DINOv2 取消共享
 
 
-## deepface
+## Ghostnet
 
 ## LongCat-Video
 
